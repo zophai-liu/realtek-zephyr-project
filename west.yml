@@ -17,3 +17,11 @@ manifest:
           - tinycrypt
           - openthread
           - mbedtls
+    - name: connectedhomeip
+      remote: project-chip
+      repo-path: connectedhomeip
+      path: modules/lib/connectedhomeip
+      revision: master
+
+  self:
+    west-commands: scripts/west-commands.yml
