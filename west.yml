@@ -24,4 +24,4 @@ manifest:
       revision: master
 
   self:
-    west-commands: scripts/west-commands.yml
+    west-commands: tool/west-commands.yml
