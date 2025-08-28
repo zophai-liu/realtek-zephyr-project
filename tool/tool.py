@@ -25,6 +25,7 @@ from runners.core import BuildConfiguration
 from zcmake import CMakeCache
 from zephyr_ext_common import Forceable, ZEPHYR_SCRIPTS
 log.set_verbosity(log.VERBOSE_NORMAL)
+
 def cmd_exec(cmd, cwd=None, shell=False):
     log.dbg(str(cmd))
     return subprocess.check_call(cmd, cwd=cwd, shell=shell)
@@ -37,7 +38,7 @@ class RealtekBee(Forceable):
             'Realtek tools for west framework',
             dedent('''
             Realtek tools for west framework'''))
-        self.tool_classes: List[Type[Tool]] = [PrependHeader, MD5, MPCLI]
+        self.tool_classes: List[Type[Tool]] = [PrependHeader, MD5, MPCLI, PACKCLI]
 
     def do_add_parser(self, parser_adder):
 
@@ -169,11 +170,11 @@ class MPCLI(Tool):
 
     @classmethod
     def do_add_parser(cls, parser):
-        prepend_parser = parser.add_parser(cls.name, formatter_class=argparse.RawTextHelpFormatter,help='MPCLI tool for firmware downloading',)
-        prepend_parser.add_argument('-c', '--com-port', required=True, type=str, 
+        mpcli_parser = parser.add_parser(cls.name, formatter_class=argparse.RawTextHelpFormatter,help='MPCLI tool for firmware downloading',)
+        mpcli_parser.add_argument('-c', '--com-port', required=True, type=str, 
                                 help='Serial communication port (e.g., COM3, /dev/ttyUSB0)')
 
-        group = prepend_parser.add_argument_group(
+        group = mpcli_parser.add_argument_group(
             "target image",
             description=dedent('''
             Without any target image option, the default zephyr.bin from build directory will be used
@@ -266,6 +267,59 @@ class MPCLI(Tool):
                         "-c", self.port,
                         "-f", mptoolconfig_path, 
                         "-a", "-r"), cwd=cmd_path)
+            except Exception as e:
+                print(e.args)
+                print(e)
+        else:
+            log.err('not supportted')
+
+class PACKCLI(Tool):
+    name = "packcli"
+    def __init__(self, tools_path, build_dir, build_conf):
+        super().__init__(tools_path, build_dir, build_conf)
+
+    @classmethod
+    def do_add_parser(cls, parser):
+        '''
+        :param parser
+        '''
+        packcli_parser = parser.add_parser(cls.name, formatter_class=argparse.RawTextHelpFormatter,help='packcli tool for firmware packing')
+        packcli_parser.add_argument('-n', '--ic-type', required=True, type=str, 
+                                help='IC Type (e.g. 8762C/8762D/8762E/8762G_VA/8762G_VB/8771HTV/8752H/8771GUV/8772GWP/8772G')
+        packcli_parser.add_argument('-m', '--pack-mode', required=True, type=str,choices=['MP', 'OTA'],  
+                                help='Select pack mode: MP or OTA')
+        packcli_parser.add_argument('--raw', action='store_const', const="RAW",
+                                help='Generate packed image in raw format')
+        packcli_parser.add_argument('-s', '--src-folder', type=str, required=True,  
+                                help='Source images folder, include: flash map.ini and images in bin format')
+        packcli_parser.add_argument('-d', '--dst-folder', type=str, required=True,
+                                help='Dest packed image folder')
+
+    def do_run(self, args, unknown_args):
+        cmd_path = Path(os.getcwd())
+
+        src_dir_path = Path(args.src_folder)
+        dst_dir_path = Path(args.dst_folder)
+        if not os.path.isdir(src_dir_path):
+            log.err('no such dir {}'.format(src_dir_path))
+        if not os.path.isdir(dst_dir_path):
+            log.err('no such dir {}'.format(dst_dir_path))
+
+        
+    
+        if platform.system() == 'Windows':
+            packcli_path = Path(self.tools_path, "packcli/PackCli.exe")
+            cmd_args = [
+            packcli_path,
+            "-n", args.ic_type,
+            "-m", args.pack_mode,
+            "-s", src_dir_path,
+            "-d", dst_dir_path,
+            ]
+            if args.raw:
+                cmd_args.append("--raw")
+            try:
+                cmd_exec(cmd_args, cwd=cmd_path)
             except Exception as e:
                 print(e.args)
                 print(e)
