@@ -135,14 +135,24 @@ class PrependHeader(Tool):
         
         return parser
     def do_run(self, args, unknown_args):
-        prepend_header_path = Path(self.tools_path, "prepend_header/prepend_header.exe")
+        
         ini_path = Path(self.tools_path, "prepend_header/mp.ini")
         cmd_path = Path(os.getcwd())
         if platform.system() == 'Windows':
-            cmd_exec((prepend_header_path, "-b", "16", "-t", "app_code","-m", "1", "-i", ini_path,
-                     "-p", self.in_bin), cwd=cmd_path)
+            prepend_header_path = Path(self.tools_path, "prepend_header/prepend_header.exe")
+        elif platform.system() == 'Darwin':
+            prepend_header_path = Path(self.tools_path, "prepend_header/prepend_header.mac")
         else:
             log.err('not supportted')
+
+        cmd_args = (prepend_header_path, 
+                    "-b", "16", 
+                    "-t", "app_code",
+                    "-m", "1", 
+                    "-c", "sha256",
+                    "-i", ini_path,
+                    "-p", self.in_bin)
+        cmd_exec(cmd_args, cwd=cmd_path)
 
 class MD5(Tool):
     name = 'md5'
@@ -155,9 +165,11 @@ class MD5(Tool):
         cmd_path = Path(os.getcwd())
         if platform.system() == 'Windows':
             md5_path = Path(self.tools_path, "md5/md5.exe")
-            cmd_exec((md5_path, in_bin_mp_path), cwd=cmd_path)
+        elif platform.system() == 'Darwin':
+            md5_path = Path(self.tools_path, "md5/MD5.mac")
         else:
             log.err('not supportted')
+        cmd_exec((md5_path, in_bin_mp_path), cwd=cmd_path)
 
 class MPCLI(Tool):
     name = 'mpcli'
@@ -173,6 +185,8 @@ class MPCLI(Tool):
         mpcli_parser = parser.add_parser(cls.name, formatter_class=argparse.RawTextHelpFormatter,help='MPCLI tool for firmware downloading',)
         mpcli_parser.add_argument('-c', '--com-port', required=True, type=str, 
                                 help='Serial communication port (e.g., COM3, /dev/ttyUSB0)')
+        mpcli_parser.add_argument('-E', '--chip-erase', required=False, action='store_true', 
+                                help='chip erase')
 
         group = mpcli_parser.add_argument_group(
             "target image",
@@ -262,16 +276,23 @@ class MPCLI(Tool):
         
         if platform.system() == 'Windows':
             mpcli_path = Path(self.tools_path, "mpcli/mpcli.exe")
-            try:
-                cmd_exec((mpcli_path, 
-                        "-c", self.port,
-                        "-f", mptoolconfig_path, 
-                        "-a", "-r"), cwd=cmd_path)
-            except Exception as e:
-                print(e.args)
-                print(e)
+        elif platform.system() == 'Darwin':
+            mpcli_path = Path(self.tools_path, "mpcli/mpcli.mac")
         else:
             log.err('not supportted')
+        cmd_args = (
+                mpcli_path,
+                "-c", self.port,
+                "-f", mptoolconfig_path,
+                "-a", "-r"
+        )
+        if args.chip_erase:
+            cmd_args = cmd_args + ("-E",)
+        try:
+            cmd_exec(cmd_args, cwd=cmd_path)
+        except Exception as e:
+            print(e.args)
+            print(e)
 
 class PACKCLI(Tool):
     name = "packcli"
@@ -304,24 +325,25 @@ class PACKCLI(Tool):
             log.err('no such dir {}'.format(src_dir_path))
         if not os.path.isdir(dst_dir_path):
             log.err('no such dir {}'.format(dst_dir_path))
-
-        
     
         if platform.system() == 'Windows':
             packcli_path = Path(self.tools_path, "packcli/PackCli.exe")
-            cmd_args = [
-            packcli_path,
-            "-n", args.ic_type,
-            "-m", args.pack_mode,
-            "-s", src_dir_path,
-            "-d", dst_dir_path,
-            ]
-            if args.raw:
-                cmd_args.append("--raw")
-            try:
-                cmd_exec(cmd_args, cwd=cmd_path)
-            except Exception as e:
-                print(e.args)
-                print(e)
+        elif platform.system() == 'Darwin':
+            packcli_path = Path(self.tools_path, "packcli/PackCli.mac")
         else:
             log.err('not supportted')
+
+        cmd_args = [
+        packcli_path,
+        "-n", args.ic_type,
+        "-m", args.pack_mode,
+        "-s", src_dir_path,
+        "-d", dst_dir_path,
+        ]
+        if args.raw:
+            cmd_args.append("--raw")
+        try:
+            cmd_exec(cmd_args, cwd=cmd_path)
+        except Exception as e:
+            print(e.args)
+            print(e)
